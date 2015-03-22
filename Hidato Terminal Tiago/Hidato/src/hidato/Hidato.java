@@ -32,7 +32,7 @@ import java.util.logging.Logger;
  */
 public class Hidato {
 
-    public static final String ANSI_B_YELLOW = "\u001B[46m";
+    public static final String ANSI_B_CYAN = "\u001B[46m";
     public static final String ANSI_RESET = "\u001B[0m";
     public static final String	BACKGROUND_BLACK	= "\u001B[47m";
     
@@ -76,10 +76,15 @@ public class Hidato {
             System.out.print("\n|");
             for(int aux2 : aux ){
                 if(aux2 == -1){
-                    System.out.printf("%s%4s %s|",ANSI_B_YELLOW," ",BACKGROUND_BLACK);
+                    System.out.printf("%s%4s %s|",ANSI_B_CYAN," ",BACKGROUND_BLACK);
                 }
                 else{
-                    System.out.printf("%s%4s %s|",BACKGROUND_BLACK,aux2,BACKGROUND_BLACK);
+                    if(aux2 == -2){
+                        System.out.printf("%s%4s %s|",BACKGROUND_BLACK,"X",BACKGROUND_BLACK);
+                    }
+                    else{
+                        System.out.printf("%s%4s %s|",BACKGROUND_BLACK,aux2,BACKGROUND_BLACK);
+                    }
                 }
             }
             System.out.println();
@@ -228,19 +233,32 @@ public class Hidato {
         int imax = instance.length;
         int jmax = instance[0].length;
         
-        int nmaxcasas = imax * jmax;  // Need a Tweek devido a puzzles nao quadrados
+        
+        // Max casas para input
+        int nmaxcasas = 0;  // Need a Tweek devido a puzzles nao quadrados
                 
                 
+        
+        
+        
         // imax X jmax  matrix of integer variables
         IntExpr[][] X = new IntExpr[imax][];
         for (int i = 0; i < imax; i++)
         {
             X[i] = new IntExpr[jmax];
-            for (int j = 0; j < jmax; j++)
+            for (int j = 0; j < jmax; j++){
                 X[i][j] = (IntExpr) ctx.mkConst(
                         ctx.mkSymbol("x_" + (i + 1) + "_" + (j + 1)),
                         ctx.getIntSort());
+            
+                // conta numero maximo para celulas
+                if(instance[i][j] != -2){
+                    nmaxcasas++;
+                }
+            }
         }
+        
+        
         
         // each cell contains a value in {1, ..., nmaxcasas}
         BoolExpr[][] cells_c = new BoolExpr[imax][];
@@ -248,247 +266,98 @@ public class Hidato {
         {
             cells_c[i] = new BoolExpr[jmax];
             for (int j = 0; j < jmax; j++)
-                cells_c[i][j] = ctx.mkAnd(ctx.mkLe(ctx.mkInt(1), X[i][j]),
-                        ctx.mkLe(X[i][j], ctx.mkInt(nmaxcasas)));
+                if(instance[i][j] != -2){
+                    cells_c[i][j] = ctx.mkAnd(ctx.mkLe(ctx.mkInt(1), X[i][j]),
+                            ctx.mkLe(X[i][j], ctx.mkInt(nmaxcasas)));
+                }
+                else{
+                    cells_c[i][j] = ctx.mkEq(ctx.mkInt(-2), X[i][j]);
+                }
         }
         
         
         // All cells distinct
        
-        IntExpr[] aux = new IntExpr[imax * jmax];
+        ArrayList<IntExpr> aux = new ArrayList<IntExpr> ();
         int it = 0;
         for (int i = 0; i < imax; i++){
             for (int j = 0; j < jmax; j++){
-                aux[it] = X[i][j];
+                if(instance[i][j] != -2)
+                    aux.add(X[i][j]);
                 it++;
             }
         }
-        BoolExpr n_distinct = ctx.mkDistinct(aux);
+        BoolExpr n_distinct = ctx.mkDistinct(aux.toArray(new IntExpr[aux.size()]));
         
         
         // Each cell must have a neightbour that his number is +1 of the actual
         ArrayList<BoolExpr> sq_c = new ArrayList<>();
         for (int i0 = 0; i0 < imax; i0++)
         {
-            for (int j0 = 0; j0 < jmax; j0++){
-                //IntExpr[] square = new IntExpr[9];
+            for (int j0 = 0; j0 < jmax ; j0++){
                 
-                // cada celula tem de ter uma vizinha cujo numero seja +1
-                ArrayList<BoolExpr> auxa = new ArrayList<>();
-                for (int i = -1; i < 2; i++){
-                    for (int j = -1; j < 2; j++){
-                        int x = i0 + i;
-                        int y = j0 + j;
-                        
-                        if(x < 0 || y < 0 || x >= imax || y >= jmax || (x==i0 && y == j0) ){}
-                        else {
-                            auxa.add(ctx.mkEq(X[i0][j0], ctx.mkSub(X[x][y],ctx.mkInt(1))));   
+                if(instance[i0][j0] != -2){
+
+                    //IntExpr[] square = new IntExpr[9];
+
+                    // cada celula tem de ter uma vizinha cujo numero seja +1
+                    ArrayList<BoolExpr> auxa = new ArrayList<>();
+                    for (int i = -1; i < 2; i++){
+                        for (int j = -1; j < 2; j++){
+                            int x = i0 + i;
+                            int y = j0 + j;
+
+                            if(x < 0 || y < 0 || x >= imax || y >= jmax || (x==i0 && y == j0) || (instance[x][y] == -2) ){}
+                            else {
+                                auxa.add(ctx.mkEq(X[i0][j0], ctx.mkSub(X[x][y],ctx.mkInt(1))));   
+                            }
                         }
                     }
-                }
-                
-                
-                // OU
-                
-                // Todas as vizinhas sao menores que a celula (max cell)
-                ArrayList<BoolExpr> auxb = new ArrayList<>();
-                for (int i = -1; i < 2; i++){
-                    for (int j = -1; j < 2; j++){
-                        int x = i0 + i;
-                        int y = j0 + j;
 
-                        if(x < 0 || y < 0 || x >= imax || y >= jmax || (x==i0 && y == j0)  ){}
-                        else {
-                            auxb.add(ctx.mkLe( X[x][y] , X[i0][j0]));   
+
+                    // OU
+
+                    // Todas as vizinhas sao menores que a celula (max cell)
+                    ArrayList<BoolExpr> auxb = new ArrayList<>();
+                    for (int i = -1; i < 2; i++){
+                        for (int j = -1; j < 2; j++){
+                            int x = i0 + i;
+                            int y = j0 + j;
+
+                            if(x < 0 || y < 0 || x >= imax || y >= jmax || (x==i0 && y == j0) || (instance[x][y] == -2) ){}
+                            else {
+                                auxb.add(ctx.mkLe( X[x][y] , X[i0][j0]));   
+                            }
                         }
                     }
-                }
-                
-                // cada celula tem de ter uma vizinha cujo numero seja +1
-                BoolExpr a = ctx.mkTrue();
-                if(auxa.size() > 0){
-                    BoolExpr[] arraya = auxa.toArray(new BoolExpr[auxa.size()]);
-                    a = ctx.mkOr(arraya);
-                }
-                // OU
-                
-                // Todas as vizinhas sao menores que a celula (max cell)
-                BoolExpr b = ctx.mkTrue();
-                if(auxb.size() > 0){
+
                     
-                    auxb.add(
-                            ctx.mkEq(X[i0][j0],
-                                    ctx.mkInt(imax*jmax)
-                            )
-                    );
                     
-                    BoolExpr[] arrayb = auxb.toArray(new BoolExpr[auxb.size()]);
-                    b = ctx.mkAnd(arrayb);
-                }        
-                
-                sq_c.add(ctx.mkOr(a,b));
-            }
-        }
-        
-        BoolExpr[] array = sq_c.toArray(new BoolExpr[sq_c.size()]);
-        BoolExpr cell_rule = ctx.mkAnd(array);
-        
-        //System.out.println(cell_rule);
-        
-
-        // Concatenation of Rules
-        BoolExpr Hidato_c = ctx.mkTrue();
-        for (BoolExpr[] t : cells_c)
-            Hidato_c = ctx.mkAnd(ctx.mkAnd(t), Hidato_c);
-        Hidato_c = ctx.mkAnd(cell_rule,Hidato_c);
-        Hidato_c = ctx.mkAnd(ctx.mkAnd(n_distinct), Hidato_c);
-
-        
-        // Definindo instancia no contexto atual
-        BoolExpr instance_c = ctx.mkTrue();
-        for (int i = 0; i < imax; i++)
-            for (int j = 0; j < jmax; j++)
-                instance_c = ctx.mkAnd( 
-                        instance_c, 
-                        (BoolExpr) ctx.mkITE(
-                                ctx.mkEq(ctx.mkInt(instance[i][j]),
-                                        ctx.mkInt(-1)), 
-                                ctx.mkTrue(),
-                                ctx.mkEq(X[i][j], ctx.mkInt(instance[i][j])))
-                       
-                );
-        
-        
-        Solver s = ctx.mkSolver();
-        s.add(Hidato_c);
-        s.add(instance_c);
-
-//        if (s.check() == Status.SATISFIABLE)
-//        {
-//            Model m = s.getModel();
-//            Expr[][] R = new Expr[9][9];
-//            for (int i = 0; i < imax; i++)
-//                for (int j = 0; j < jmax; j++)
-//                    R[i][j] = m.evaluate(X[i][j], false);
-//            System.out.println("Hidato solution:");
-//            for (int i = 0; i < imax; i++)
-//            {
-//                for (int j = 0; j < jmax; j++)
-//                    System.out.print(" " + R[i][j]);
-//                System.out.println();
-//            }
-//        } else
-//        {
-//            System.out.println("Failed to solve Hidato");
-//        }
-        
-        return (s.check()== Status.SATISFIABLE)?true:false;
-        
-    }
-        
-           
-     
-     
-     
-      void HiDatoStatic(Context ctx) throws Z3Exception
-    {
-        
-        int imax = 3;
-        int jmax = 3;
-        int nmaxcasas = imax * jmax;
-                
-                
-        // imax X jmax  matrix of integer variables
-        IntExpr[][] X = new IntExpr[imax][];
-        for (int i = 0; i < imax; i++)
-        {
-            X[i] = new IntExpr[jmax];
-            for (int j = 0; j < jmax; j++)
-                X[i][j] = (IntExpr) ctx.mkConst(
-                        ctx.mkSymbol("x_" + (i + 1) + "_" + (j + 1)),
-                        ctx.getIntSort());
-        }
-        
-        // each cell contains a value in {1, ..., nmaxcasas}
-        BoolExpr[][] cells_c = new BoolExpr[imax][];
-        for (int i = 0; i < imax; i++)
-        {
-            cells_c[i] = new BoolExpr[jmax];
-            for (int j = 0; j < jmax; j++)
-                cells_c[i][j] = ctx.mkAnd(ctx.mkLe(ctx.mkInt(1), X[i][j]),
-                        ctx.mkLe(X[i][j], ctx.mkInt(nmaxcasas)));
-        }
-        
-        
-        // All cells distinct
-       
-        IntExpr[] aux = new IntExpr[imax * jmax];
-        int it = 0;
-        for (int i = 0; i < imax; i++){
-            for (int j = 0; j < jmax; j++){
-                aux[it] = X[i][j];
-                it++;
-            }
-        }
-        BoolExpr n_distinct = ctx.mkDistinct(aux);
-        
-        
-        // Each cell must have a neightbour that his number is +1 of the actual
-        ArrayList<BoolExpr> sq_c = new ArrayList<>();
-        for (int i0 = 0; i0 < imax; i0++)
-        {
-            for (int j0 = 0; j0 < jmax; j0++){
-                //IntExpr[] square = new IntExpr[9];
-                
-                // cada celula tem de ter uma vizinha cujo numero seja +1
-                ArrayList<BoolExpr> auxa = new ArrayList<>();
-                for (int i = -1; i < 2; i++){
-                    for (int j = -1; j < 2; j++){
-                        int x = i0 + i;
-                        int y = j0 + j;
-                        
-                        if(x < 0 || y < 0 || x >= imax || y >= jmax || (x==i0 && y == j0) ){}
-                        else {
-                            auxa.add(ctx.mkEq(X[i0][j0], ctx.mkSub(X[x][y],ctx.mkInt(1))));   
-                        }
+                    // cada celula tem de ter uma vizinha cujo numero seja +1
+                    BoolExpr a = ctx.mkTrue();
+                    if(auxa.size() > 0){
+                        BoolExpr[] arraya = auxa.toArray(new BoolExpr[auxa.size()]);
+                        a = ctx.mkOr(arraya);
                     }
-                }
-                
-                
-                // OU
-                
-                // Todas as vizinhas sao menores que a celula (max cell)
-                ArrayList<BoolExpr> auxb = new ArrayList<>();
-                for (int i = -1; i < 2; i++){
-                    for (int j = -1; j < 2; j++){
-                        int x = i0 + i;
-                        int y = j0 + j;
+                    // OU
 
-                        if(x < 0 || y < 0 || x >= imax || y >= jmax || (x==i0 && y == j0)  ){}
-                        else {
-                            auxb.add(ctx.mkLe( X[x][y] , X[i0][j0]));   
-                        }
-                    }
+                    // Todas as vizinhas sao menores que a celula (max cell)
+                    BoolExpr b = ctx.mkTrue();
+                    if(auxb.size() > 0){
+
+                        auxb.add(
+                                ctx.mkEq(X[i0][j0],
+                                        ctx.mkInt(nmaxcasas)
+                                )
+                        );
+
+                        BoolExpr[] arrayb = auxb.toArray(new BoolExpr[auxb.size()]);
+                        b = ctx.mkAnd(arrayb);
+                    }        
+
+                    sq_c.add(ctx.mkOr(a,b));
+                
                 }
-                
-                // cada celula tem de ter uma vizinha cujo numero seja +1
-                BoolExpr a = ctx.mkTrue();
-                if(auxa.size() > 0){
-                    BoolExpr[] arraya = auxa.toArray(new BoolExpr[auxa.size()]);
-                    a = ctx.mkOr(arraya);
-                }
-                // OU
-                
-                // Todas as vizinhas sao menores que a celula (max cell)
-                BoolExpr b = ctx.mkTrue();
-                if(auxb.size() > 0){
-                    
-                    
-                    BoolExpr[] arrayb = auxb.toArray(new BoolExpr[auxb.size()]);
-                    b = ctx.mkAnd(arrayb);
-                }        
-                
-                sq_c.add(ctx.mkOr(a,b));
             }
         }
         
@@ -505,10 +374,6 @@ public class Hidato {
         Hidato_c = ctx.mkAnd(cell_rule,Hidato_c);
         Hidato_c = ctx.mkAnd(ctx.mkAnd(n_distinct), Hidato_c);
 
-     
-        int[][] instance = { {1 , -1, -1} , 
-                             {-1 , -1, -1} , 
-                             {-1, -1, 9} };
         
         // Definindo instancia no contexto atual
         BoolExpr instance_c = ctx.mkTrue();
@@ -517,8 +382,8 @@ public class Hidato {
                 instance_c = ctx.mkAnd( 
                         instance_c, 
                         (BoolExpr) ctx.mkITE(
-                                ctx.mkEq(ctx.mkInt(instance[i][j]),
-                                        ctx.mkInt(-1)), 
+                                ctx.mkEq(ctx.mkInt(instance[i][j]), ctx.mkInt(-1)
+                                    ), 
                                 ctx.mkTrue(),
                                 ctx.mkEq(X[i][j], ctx.mkInt(instance[i][j])))
                        
@@ -529,29 +394,11 @@ public class Hidato {
         s.add(Hidato_c);
         s.add(instance_c);
 
-        if (s.check() == Status.SATISFIABLE)
-        {
-            Model m = s.getModel();
-            Expr[][] R = new Expr[9][9];
-            for (int i = 0; i < imax; i++)
-                for (int j = 0; j < jmax; j++)
-                    R[i][j] = m.evaluate(X[i][j], false);
-            System.out.println("Hidato solution:");
-            for (int i = 0; i < imax; i++)
-            {
-                for (int j = 0; j < jmax; j++)
-                    System.out.print(" " + R[i][j]);
-                System.out.println();
-            }
-        } else
-        {
-            System.out.println("Failed to solve Hidato");
-        }
+        return (s.check()== Status.SATISFIABLE)?true:false;
         
     }
         
-           
-      
+ 
     public void writePuzzle(int[][] instance,String path) throws IOException{
         File file = new File(path);
  
@@ -607,7 +454,7 @@ public class Hidato {
           for(String aux : line){
               switch(aux){
                   case "X" :
-                      instance[i][j] = -1;
+                      instance[i][j] = -2;
                       break;
                   case "_" :
                       instance[i][j] = -1;
