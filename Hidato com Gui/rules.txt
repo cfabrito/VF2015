@@ -1,0 +1,18 @@
+In Hidato, a grid of cells is given. It is usually square-shaped, like Sudoku or Kakuro, but it can also include irregular
+	shaped grids like hearts, skulls, and so forth. It can have inner holes (like a disc), but it has to be made of only
+	one piece.
+
+The goal is to fill the grid with a series of consecutive numbers adjacent to each other vertically, horizontally, or
+	diagonally.
+
+In every Hidato puzzle the smallest and the highest numbers are given on the grid. There are also other given numbers on the
+	grid (with values between the smallest and the highest) to help direct the player how to start the solution and to
+	ensure that Hidato has a single solution.
+
+Note: the above condition on the smallest or highest numbers are sometimes relaxed: only their values can be given, without 
+	their positions on the grid (of course, the difference between these values must be equal to the number of cells in 
+	the grid minus one). This may lead to harder puzzles.
+
+Every well-formed Hidato puzzle is supposed to have a unique solution. Moreover, a Hidato puzzle intended for human solvers 
+	should have a solution that can be found by (more or less) simple logic. However, there exist very hard Hidato puzzles,
+	even of small size.
