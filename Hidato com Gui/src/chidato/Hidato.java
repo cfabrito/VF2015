@@ -56,9 +56,6 @@ public class Hidato
         {
             BoardSolver bs = new BoardSolver(board);
             
-            bs.setValue(0, 1, 3);
-            bs.undoSetValue();
-            
             if (bs.checkSolution())
             {
                 System.out.println("Solution found");

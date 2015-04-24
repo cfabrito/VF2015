@@ -4,7 +4,9 @@ package chidato;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Scanner;
 
 /**
@@ -58,6 +60,25 @@ public class Board
         }
     }
     
+    public void saveToFile(String filepath) throws IOException
+    {
+        PrintWriter printWriter = new PrintWriter(new FileWriter(filepath, false));
+        
+        printWriter.println(height);
+        printWriter.println(width);
+                
+        for (int i = 0; i < height; ++i)
+        {
+            for (int j = 0; j < width; ++j)
+            {                
+                printWriter.printf("%4s",cells[i][j] + " ");
+            }
+            printWriter.println();
+        }
+        
+        printWriter.flush();
+    }
+    
     private void loadFromArray(int instance[][])
     {
         height = instance.length;
@@ -69,6 +90,22 @@ public class Board
     public int[][] getCells()
     {
         return cells;
+    }
+    
+    public void setCell(int row, int col, int value)
+    {
+        if(row >= height || col >= width)
+            throw new RuntimeException("Bad board access");
+        
+        cells[row][col] = value;
+    }
+    
+    public int getCell(int row, int col)
+    {
+        if(row >= height || col >= width)
+            throw new RuntimeException("Bad board access");
+
+        return cells[row][col];
     }
     
     public String getDisplay()
@@ -101,4 +138,5 @@ public class Board
     
     private int width, height;
     private int[][] cells;
+   
 }

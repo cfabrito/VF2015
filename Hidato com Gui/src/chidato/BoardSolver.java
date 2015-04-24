@@ -6,8 +6,10 @@ package chidato;
  */
 
 import com.microsoft.z3.*;
+import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 public final class BoardSolver
 {    
@@ -15,6 +17,8 @@ public final class BoardSolver
     {
         max = 0;
         ctx = new Context();
+        moves = new Stack<>();
+        empty_cells = new ArrayList<>();
         
         loadFromInstance(b);
     }
@@ -48,6 +52,10 @@ public final class BoardSolver
                     continue;
                 }
                 
+                if(instance[i][j] == 0)
+                    empty_cells.add( new Point(j, i) );
+                
+                                
                 expr = (IntExpr) ctx.mkConst(
                                         ctx.mkSymbol("x_"+i+"_"+j),
                                         ctx.getIntSort());
@@ -63,6 +71,9 @@ public final class BoardSolver
                 board[i][j] = expr;
                 
                 exprs[z++] = expr;
+                
+                
+
             }
         }
         
@@ -109,21 +120,65 @@ public final class BoardSolver
         sol.add(nconst);
     }
     
-    public void setValue(int col, int row, int value) throws Z3Exception
+    public void makeMove(int col, int row, int value) throws Z3Exception
     {
-        sol.push();
+        moves.push(new Move(col, row, value) );
         
+        sol.push(); 
         sol.add (ctx.mkEq(board[col][row], ctx.mkInt(value)));
+        
+        empty_cells.remove( new Point(row,col) );
+        
+        System.out.println("New move added " + moves);
     }
     
-    public void undoSetValue() throws Z3Exception
+    public void undoMove(int value) throws Z3Exception
     {
-        sol.pop();
+        ArrayList<Move> temp = new ArrayList<>();
+        
+        if(moves.isEmpty())
+            return;
+        
+        while(moves.peek().value != value)
+        {
+            temp.add(moves.pop());
+            sol.pop();
+        }
+        
+        if(moves.peek().value == value)
+        {
+            Move m = moves.pop();
+            
+            empty_cells.add( new Point(m.col, m.row) );
+            
+            sol.pop();
+        }
+        
+        for(Move m : temp)
+            makeMove(m.col, m.row, m.value);
+    }
+    
+    public Move getHint() throws Z3Exception
+    {
+        Point p = empty_cells.get(0);
+        
+        checkSolution();
+        
+        Move m = new Move (p.y, p.x, getSolution()[p.y][p.x]);
+        
+        makeMove(m.col, m.row, m.value);
+        
+        return m;
     }
     
     public boolean checkSolution() throws Z3Exception
     {
         return sol.check() == Status.SATISFIABLE;        
+    }
+    
+    public int getMax()
+    {
+        return max;
     }
     
     public int[][] getSolution() throws Z3Exception
@@ -187,11 +242,37 @@ public final class BoardSolver
         }
     }
     
+    
     private final Context ctx;
     private Solver sol;
     private IntExpr board[][];
     private int max;
     
+    public class Move
+    {
+        public Move(int col, int row, int value) {
+            this.value = value;
+            this.row = row;
+            this.col = col;
+        }
+
+        @Override
+        public String toString() {
+            return "Move{" + "row=" + row + ", col=" + col + ", value=" + value + '}';
+        }
+        
+        
+        public int row, col;
+        public int value;
+    }
+    
+    private Stack<Move> moves;
+    
     private int width;
     private int height;
+
+    private ArrayList<Point> empty_cells; 
+    
+    
+    
 }

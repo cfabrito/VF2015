@@ -46,33 +46,42 @@ public class SwingHidato extends javax.swing.JFrame {
     // 2 -> Ask Value to player
     private int GAME_MODE = 1;
     
-    
-    
-    
-    private JButton[][] botoes ;
+    private JButton[][] botoes = null;
     private Board board;
     private BoardSolver bsolver;
     private boolean PUZZLE_COMPLETE = false;
+    
+    private int next_value = 1;
+    
     
     
     // Para uma interface de insercao de numeros sequencial
     private int calculate_nextValueToInsert(){
         boolean still_not = false;
-        int nextValueToInsert = 1; 
-        while( ! still_not && /*NOT MAX*/ nextValueToInsert < botoes.length * botoes[0].length ){
+        int nextValueToInsert = 1;
+        
+        System.out.println(board.getDisplay());
+        
+        while( !still_not && nextValueToInsert < bsolver.getMax() )
+        {
             nextValueToInsert++;
             still_not = true;
             
-            for(int i = 0 ; i < botoes.length && still_not ; i++){
-                for(int j = 0 ; j < botoes[0].length && still_not ; j++){
-  
-                    if(Integer.parseInt(botoes[i][j].getText()) ==  nextValueToInsert){
+            for(int i = 0 ; i < board.getHeight() && still_not ; i++)
+            {
+                for(int j = 0 ; j < board.getWidth() && still_not ; j++)
+                {
+                    if(board.getCell(i, j) ==  nextValueToInsert)
+                    {
                         still_not = false;
                     }
                 }
             }
             
         }
+        
+        this.jTextField1.setText(nextValueToInsert +"");
+        
         return nextValueToInsert;
     }
     
@@ -81,53 +90,46 @@ public class SwingHidato extends javax.swing.JFrame {
         
         createMenuBar();
         
-        
-        
-        
-        int[][] instance = { {1 , -1, -2} , 
-                             {-1 , -1, -1} , 
-                             {-1, -1, 9} };
-        
-        try {
-            board = new Board("test.txt");
-        }
-        catch(FileNotFoundException e)
-        {
-            System.out.println("File not found - " + e.getMessage());
-            return;
-        }
-        catch (Exception e)
-        {
-            System.out.println("IOException - " + e.getMessage());
-            return;
-        }
-        
-        
-        try {
-            this.bsolver = new BoardSolver(board);
-        } catch (Z3Exception ex) {
-            Logger.getLogger(SwingHidato.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
-        
-        makeBoardGUI(board.getCells());
+        loadNewBoard("test.txt");
     }
 
-    private void makeBoardGUI(int[][] instance){
+    private void deleteButtons(){
+        if(botoes != null)
+        {
+            for(JButton[] bs : botoes){
+                for(JButton b : bs){
+                    b.setVisible(false);
+                }
+            }
+        }
+    }
+    private void makeBoardGUI()
+    {
+        int height = board.getHeight();
+        int width = board.getWidth();
         
-          
-        this.botoes = new JButton[instance.length][instance[0].length];
         
+        deleteButtons();
+        
+        this.botoes = new JButton[height][width];
         
         int x_init = 0, y_init = 0;
-        int largura_botao = 60, altura_botao = 40;
+        int largura_botao = 60, altura_botao = 40, altura_menu = 70;
+       
+        int status_width  = 120;
+        int status_height = this.jPanel2.getHeight() + altura_menu;
         
-        this.jPanel1.setPreferredSize(new Dimension(instance.length * largura_botao, 480));
-        this.setBounds(50,50,instance.length * largura_botao + 30 , instance[0].length * altura_botao + 70);
+        int window_width  = height * largura_botao + 30 + status_width;
         
+        int window_height = status_height > width * altura_botao + altura_menu? status_height : width * altura_botao + altura_menu;
         
-        for(int i = 0 ; i < instance.length ; i++){
-            for(int j = 0 ; j < instance[0].length ; j++){
+        this.jPanel1.setPreferredSize(new Dimension(height * largura_botao, 480));
+        this.setBounds(50,50,window_width, window_height);
+                
+        int[][] instance = board.getCells();
+        
+        for(int i = 0 ; i < height; i++){
+            for(int j = 0 ; j < width; j++){
                 
                 JButton b=new JButton("" + instance[i][j]);//creating instance of JButton
                 b.setFocusable(false);
@@ -165,8 +167,25 @@ public class SwingHidato extends javax.swing.JFrame {
         } 
     }
     
+    private void loadNewBoard(String filepath)
+    {
+        try {            
+            board = new Board(filepath);
+            bsolver = new BoardSolver(board);
+            makeBoardGUI();
+            
+            next_value = calculate_nextValueToInsert();
+            
+        } catch (IOException ex) {
+            System.out.println("IOException at loadNewBoard(): " + ex.getMessage());
+        } catch (Z3Exception ex) {
+            System.out.println("Z3Exception at loadNewBoard(): " + ex.getMessage());
+        }
+    }
+    
     private String fileChooser(){
         JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setCurrentDirectory(new File("./boards"));
         int returnValue = fileChooser.showOpenDialog(null);
         if (returnValue == JFileChooser.APPROVE_OPTION) {
           File selectedFile = fileChooser.getSelectedFile();
@@ -224,11 +243,8 @@ public class SwingHidato extends javax.swing.JFrame {
             eMenuItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent event) {
-                    try {
-                        board = new Board(fileChooser());
-                    } catch (IOException ex) {
-                        JOptionPane.showMessageDialog(null, "Ficheiro especifado nao pode ser carregado");
-                    }
+                    loadNewBoard(fileChooser());
+                    System.out.println(board.getDisplay());
                 }
             });
             file.add(eMenuItem);
@@ -239,7 +255,11 @@ public class SwingHidato extends javax.swing.JFrame {
             eMenuItem.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent event) {
-                    fileChooser();
+                    try {
+                        board.saveToFile(fileChooser());
+                    } catch (IOException ex) {
+                        Logger.getLogger(SwingHidato.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
             });
             file.add(eMenuItem);
@@ -254,22 +274,16 @@ public class SwingHidato extends javax.swing.JFrame {
                         if(PUZZLE_COMPLETE)
                             return;
                         
-                        //NEEEDS PRE NOT COMPLETE
-                        boolean got = false;
-                        int i = 0 ,j = 0;
-                        Random rnd = new Random();
-                        while(!got){
-                            i = rnd.nextInt(botoes.length);
-                            j = rnd.nextInt(botoes[0].length);
-                            got = botoes[i][j].getText().matches("0")?true:false;
-                        }
-
-                        boolean valid_hint = false;
-                        while(! valid_hint ){
-                            int value = rnd.nextInt(botoes.length * botoes[0].length);
-
-                            valid_hint = pushValue(i,j,  value);
-
+                        try {
+                            //NEEEDS PRE NOT COMPLETE
+                            BoardSolver.Move m = bsolver.getHint();
+                            board.setCell(m.row, m.col, m.value);
+                            botoes[m.col][m.row].setText(m.value+"");
+                            
+                            next_value = calculate_nextValueToInsert();
+                            
+                        } catch (Z3Exception ex) {
+                            Logger.getLogger(SwingHidato.class.getName()).log(Level.SEVERE, null, ex);
                         }
 
                     }
@@ -330,7 +344,17 @@ public class SwingHidato extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jScrollPane1 = new javax.swing.JScrollPane();
+        jTextArea1 = new javax.swing.JTextArea();
         jPanel1 = new javax.swing.JPanel();
+        jPanel2 = new javax.swing.JPanel();
+        jTextField1 = new javax.swing.JTextField();
+        jLabel2 = new javax.swing.JLabel();
+        jButton1 = new javax.swing.JButton();
+
+        jTextArea1.setColumns(20);
+        jTextArea1.setRows(5);
+        jScrollPane1.setViewportView(jTextArea1);
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setResizable(false);
@@ -351,21 +375,67 @@ public class SwingHidato extends javax.swing.JFrame {
             .addGap(0, 100, Short.MAX_VALUE)
         );
 
+        jPanel2.setBorder(javax.swing.BorderFactory.createEtchedBorder());
+        jPanel2.setPreferredSize(new java.awt.Dimension(100, 150));
+
+        jTextField1.setHorizontalAlignment(javax.swing.JTextField.CENTER);
+
+        jLabel2.setText("Next Value :");
+
+        jButton1.setText("Play for Me");
+        jButton1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addGroup(jPanel2Layout.createSequentialGroup()
+                            .addGap(12, 12, 12)
+                            .addComponent(jTextField1))
+                        .addComponent(jLabel2))
+                    .addComponent(jButton1))
+                .addContainerGap(30, Short.MAX_VALUE))
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel2)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jButton1)
+                .addContainerGap(47, Short.MAX_VALUE))
+        );
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addContainerGap()
+                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, 112, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap())
         );
 
         pack();
@@ -375,37 +445,68 @@ public class SwingHidato extends javax.swing.JFrame {
         System.exit(0);
     }//GEN-LAST:event_formWindowClosed
 
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+         if(PUZZLE_COMPLETE)
+            return;
+
+        try {
+            //NEEEDS PRE NOT COMPLETE
+            BoardSolver.Move m = bsolver.getHint();
+            board.setCell(m.row, m.col, m.value);
+            botoes[m.col][m.row].setText(m.value+"");
+
+            next_value = calculate_nextValueToInsert();
+
+        } catch (Z3Exception ex) {
+            Logger.getLogger(SwingHidato.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }//GEN-LAST:event_jButton1ActionPerformed
+
     
    
     
     private void buttonActionClick(java.awt.event.ActionEvent evt , int x , int y) {   
         
         if(! botoes[x][y].getText().equals("0")){
+            
+            try {
+                board.setCell(x, y, 0);
+                bsolver.undoMove(Integer.parseInt(botoes[x][y].getText()));
+                
+            } catch (Z3Exception ex) {
+                Logger.getLogger(SwingHidato.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
+            next_value = calculate_nextValueToInsert();
+            
+            
             botoes[x][y].setText("0");
-            System.out.println("NEED HELP CAN?T POP VALUE FROM BOARDSOLVER");
+            
             return;
         }
-        
+       
+        System.out.println(calculate_nextValueToInsert());
         
         int next_to_place = 0;
         
-        if(this.GAME_MODE == 1)
-            next_to_place = calculate_nextValueToInsert();
         
-        if(this.GAME_MODE == 2){
-            try{
-            next_to_place = Integer.parseInt( JOptionPane.showInputDialog(null, "What value you wanna insert?") );
-            } catch (Exception e){
-                return;
-            }
+        try{
+            next_to_place = Integer.parseInt( this.jTextField1.getText() );
+        } catch (Exception e){
+            return;
         }
         
         System.out.println("--" + next_to_place);
+        
         
         this.pushValue(x, y, next_to_place);
       
 
         System.out.printf("Click [%2d,%2d]\n",x,y);
+        
+        //System.out.println(bsolver.getSol().toString());
+        
+        this.next_value = calculate_nextValueToInsert();
         
     }                 
     /**
@@ -452,16 +553,20 @@ public class SwingHidato extends javax.swing.JFrame {
     public boolean pushValue(int i , int j , int  value){
 
         try {
-            bsolver.setValue(i,j, value);
+            bsolver.makeMove(i,j, value);
             
             
             if( bsolver.checkSolution()){
                 botoes[i][j].setText("" + value);
-                this.PUZZLE_COMPLETE = check_complete_puzzle();
+                board.setCell(i, j, value);
+                
+                if(check_complete_puzzle())
+                    JOptionPane.showMessageDialog(null, printFicheiro("win.txt"));
+                
                 return true;
             }
             
-            bsolver.undoSetValue();
+            bsolver.undoMove(value);
             
             
         } catch (Z3Exception ex) {
@@ -509,17 +614,14 @@ public class SwingHidato extends javax.swing.JFrame {
         } 
         return res.toString();
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton jButton1;
+    private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JTextArea jTextArea1;
+    private javax.swing.JTextField jTextField1;
     // End of variables declaration//GEN-END:variables
 }
