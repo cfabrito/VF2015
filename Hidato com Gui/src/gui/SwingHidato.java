@@ -130,8 +130,12 @@ public class SwingHidato extends javax.swing.JFrame {
         
         for(int i = 0 ; i < height; i++){
             for(int j = 0 ; j < width; j++){
+                JButton b;
+                if(instance[i][j] == 0)
+                    b = new JButton(" ");//creating instance of JButton
+                else
+                    b = new JButton("" + instance[i][j]);//creating instance of JButton
                 
-                JButton b=new JButton("" + instance[i][j]);//creating instance of JButton
                 b.setFocusable(false);
                 
                 // Button Action
@@ -149,12 +153,12 @@ public class SwingHidato extends javax.swing.JFrame {
                 }
                 
                 // caixas bloqueio visiveis mas pretas
-                //if(instance[i][j] != -2)
+                //if(instance[i][j] != 0)
                    // b.setBackground(Color.DARK_GRAY);
                 
                 b.setBounds(
-                        y_init + largura_botao * i /* x axis */,
-                        x_init + altura_botao *j /* y axis */,
+                        y_init  + largura_botao  *j /* y axis */,
+                        x_init  +  altura_botao* i /* x axis */,
                         largura_botao /*width */, 
                         altura_botao /*height */
                 );
@@ -201,36 +205,10 @@ public class SwingHidato extends javax.swing.JFrame {
         
         ImageIcon icon = new ImageIcon("exit.png");
 
-        // MODE MENU ===========================================================
-        JMenu mode = new JMenu("Game Mode");
-        mode.setMnemonic(KeyEvent.VK_M);
         
-        
-            JMenuItem eMenuItem = new JMenuItem("Sequencial", icon);
-            eMenuItem.setMnemonic(KeyEvent.VK_S);
-            eMenuItem.setToolTipText("When pressed a button you try to input the next int value available");
-            eMenuItem.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent event) {
-                   GAME_MODE = 1;
-                }
-            });
-            mode.add(eMenuItem);
-            
-            eMenuItem = new JMenuItem("Value", icon);
-            eMenuItem.setMnemonic(KeyEvent.VK_V);
-            eMenuItem.setToolTipText("When pressed a button the value is asked to you");
-            eMenuItem.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent event) {
-                   GAME_MODE = 2;
-                }
-            });
-            mode.add(eMenuItem);
+        JMenuItem eMenuItem ;
             
         
-        // MODE MENU ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^   
-            
         // FILE MENU ===========================================================
         
         JMenu file = new JMenu("File");
@@ -321,7 +299,7 @@ public class SwingHidato extends javax.swing.JFrame {
         // menubar and add the components
         JMenuBar menubar = new JMenuBar();
         menubar.add(file);
-        menubar.add(mode);
+
 
         setJMenuBar(menubar);
     }
@@ -379,6 +357,11 @@ public class SwingHidato extends javax.swing.JFrame {
         jPanel2.setPreferredSize(new java.awt.Dimension(100, 150));
 
         jTextField1.setHorizontalAlignment(javax.swing.JTextField.CENTER);
+        jTextField1.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                jTextField1FocusGained(evt);
+            }
+        });
 
         jLabel2.setText("Next Value :");
 
@@ -403,7 +386,7 @@ public class SwingHidato extends javax.swing.JFrame {
                             .addComponent(jTextField1))
                         .addComponent(jLabel2))
                     .addComponent(jButton1))
-                .addContainerGap(30, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -414,7 +397,7 @@ public class SwingHidato extends javax.swing.JFrame {
                 .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jButton1)
-                .addContainerGap(47, Short.MAX_VALUE))
+                .addContainerGap(59, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -462,16 +445,21 @@ public class SwingHidato extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_jButton1ActionPerformed
 
+    private void jTextField1FocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_jTextField1FocusGained
+        
+    }//GEN-LAST:event_jTextField1FocusGained
+
     
    
     
     private void buttonActionClick(java.awt.event.ActionEvent evt , int x , int y) {   
         
-        if(! botoes[x][y].getText().equals("0")){
+        if(! botoes[x][y].getText().equals(" ")){
             
             try {
                 board.setCell(x, y, 0);
                 bsolver.undoMove(Integer.parseInt(botoes[x][y].getText()));
+                
                 
             } catch (Z3Exception ex) {
                 Logger.getLogger(SwingHidato.class.getName()).log(Level.SEVERE, null, ex);
@@ -485,7 +473,6 @@ public class SwingHidato extends javax.swing.JFrame {
             return;
         }
        
-        System.out.println(calculate_nextValueToInsert());
         
         int next_to_place = 0;
         
@@ -495,9 +482,7 @@ public class SwingHidato extends javax.swing.JFrame {
         } catch (Exception e){
             return;
         }
-        
-        System.out.println("--" + next_to_place);
-        
+         
         
         this.pushValue(x, y, next_to_place);
       
